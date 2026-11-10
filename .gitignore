@@ -1,0 +1,26 @@
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# 数据与产物：只保留目录结构，不提交内容
+data/raw/*
+data/labels/*
+data/interim/*
+data/features/*
+data/splits/*
+outputs/*
+!**/.gitkeep
+docs/*
+
+
+# 本地密钥
+.env

@@ -1,0 +1,61 @@
+[project]
+name = "edaic"
+version = "0.1.0"
+description = "E-DAIC PHQ-8 prediction: text per-item LLM (Stage 1) + audio residual MIL (Stage 2)"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { file = "LICENSE" }
+
+# 核心依赖：配置、数据、Stage 2、评估都只需要这些
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+    "torch>=2.3",
+    "soundfile>=0.12",
+    "rapidfuzz>=3.6",
+]
+
+[project.optional-dependencies]
+# 预处理：VAD + WhisperX（转写 / 对齐 / 说话人分离）+ WavLM 特征
+preprocess = [
+    "silero-vad>=5.1",
+    "whisperx>=3.3",
+    "torchaudio>=2.3",
+    "transformers>=4.44",
+]
+# Stage 1：bge 检索 + LLM LoRA
+stage1 = [
+    "transformers>=4.44",
+    "peft>=0.12",
+    "accelerate>=0.33",
+    "sentence-transformers>=3.0",
+    "bitsandbytes>=0.43; sys_platform == 'linux'",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+all = ["edaic[preprocess,stage1,dev]"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["B905"]

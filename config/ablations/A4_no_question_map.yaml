@@ -1,0 +1,5 @@
+# A4：检索只用 embedding，不用问题映射表（需要重跑 retrieve.py 和 Stage 1）
+_base_: ../default.yaml
+experiment: {name: A4_no_question_map}
+stage1:
+  retrieval: {use_question_map: false}

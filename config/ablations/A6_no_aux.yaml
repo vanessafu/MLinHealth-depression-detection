@@ -1,0 +1,6 @@
+# A6：不用 tired / moving 辅助任务（只跑 Stage 2，复用主实验的 Stage 1 老师）
+_base_: ../default.yaml
+experiment: {name: A6_no_aux}
+stage2:
+  teacher: {stage1_dir: outputs/main/stage1}
+  loss: {w_tired: 0.0, w_mov: 0.0}

@@ -1,0 +1,5 @@
+# A5：保留寒暄题（需要重跑预处理的 qa / segments / wavlm 步骤，产物在 .../rapport/ 子目录）
+_base_: ../default.yaml
+experiment: {name: A5_keep_rapport}
+preprocessing:
+  qa: {keep_rapport: true}

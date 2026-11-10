@@ -1,0 +1,10 @@
+# 基线评估：A0（训练集均值）+ A1（Stage 1 零样本，S1-B0）
+# 只写与 default.yaml 不同的地方
+_base_: default.yaml
+
+experiment:
+  name: baseline
+
+stage2:
+  teacher:
+    kind: zeroshot

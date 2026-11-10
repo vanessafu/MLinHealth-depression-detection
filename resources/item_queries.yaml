@@ -1,0 +1,66 @@
+# PHQ-8 每道题的定义（写进提示词）和检索查询 Q_k（3–5 个改写 / 口语说法）
+# 可以自由增删 queries；改完需要重跑 scripts/stage1-text/retrieve.py
+1:
+  name: interest
+  text: "Little interest or pleasure in doing things"
+  queries:
+    - "little interest or pleasure in doing things"
+    - "I don't enjoy the things I used to like anymore"
+    - "what do you do for fun, hobbies, things you enjoy"
+    - "I just don't feel like doing anything"
+2:
+  name: depressed
+  text: "Feeling down, depressed, or hopeless"
+  queries:
+    - "feeling down, depressed, or hopeless"
+    - "I've been feeling sad and low lately"
+    - "how have you been feeling emotionally recently"
+    - "I feel hopeless about the future"
+3:
+  name: sleep
+  text: "Trouble falling or staying asleep, or sleeping too much"
+  queries:
+    - "trouble falling or staying asleep, or sleeping too much"
+    - "how easy is it for you to get a good night's sleep"
+    - "I wake up in the middle of the night and can't get back to sleep"
+    - "I sleep all day"
+4:
+  name: tired
+  text: "Feeling tired or having little energy"
+  queries:
+    - "feeling tired or having little energy"
+    - "I'm exhausted all the time"
+    - "I don't have the energy to get things done"
+    - "how do you feel when you don't sleep well"
+5:
+  name: appetite
+  text: "Poor appetite or overeating"
+  queries:
+    - "poor appetite or overeating"
+    - "I haven't been eating much"
+    - "I eat too much when I'm stressed"
+    - "changes in weight or eating habits"
+6:
+  name: failure
+  text: "Feeling bad about yourself, or that you are a failure, or have let yourself or your family down"
+  queries:
+    - "feeling bad about yourself or that you are a failure"
+    - "I feel like I let my family down"
+    - "is there anything you regret or feel guilty about"
+    - "what would you change about yourself"
+7:
+  name: concentrating
+  text: "Trouble concentrating on things, such as reading the newspaper or watching television"
+  queries:
+    - "trouble concentrating on things such as reading or watching television"
+    - "I can't focus on anything"
+    - "my mind wanders and I lose track"
+    - "it's hard to pay attention at work or school"
+8:
+  name: moving
+  text: "Moving or speaking so slowly that other people could have noticed, or the opposite: being so fidgety or restless that you have been moving around a lot more than usual"
+  queries:
+    - "moving or speaking so slowly that other people could have noticed"
+    - "being so fidgety or restless that I move around a lot more than usual"
+    - "I feel restless and can't sit still"
+    - "people say I seem slowed down"

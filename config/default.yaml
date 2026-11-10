@@ -1,0 +1,201 @@
+# =====================================================================
+# E-DAIC PHQ-8 管线：默认配置（所有超参数的推荐起点）
+# 每一项的含义和可调范围见 config/README.md
+# 命令行覆盖：--set stage2.loss.w_tired=0.25 stage1.retrieval.top_n=8
+# 其他配置文件可写 `_base_: default.yaml` 继承本文件，只写差异
+# =====================================================================
+
+experiment:
+  name: main                 # 产物写到 outputs/<name>/
+  seed: 42
+  device: cuda               # cuda / cpu / mps
+
+# ---------------------------------------------------------------------
+# 路径（相对项目根目录）
+# ---------------------------------------------------------------------
+paths:
+  raw_audio: data/raw                  # 放 XXX_AUDIO.wav（也支持 XXX_P/XXX_AUDIO.wav）
+  audio_glob: "**/*_AUDIO.wav"
+  labels_dir: data/labels              # train/dev/test_split.csv + Detailed_PHQ8_Labels.csv
+  interim: data/interim                # VAD、转写、Q-A 对、片段表
+  features: data/features              # WavLM 特征缓存
+  splits: data/splits                  # 固定的 5 折划分
+  resources: resources                 # Ellie 问题库、每题检索查询
+  outputs: outputs
+  egemaps_dir: null                    # 可选：官方 eGeMAPS 特征目录，仅用于 Stage 2 前提检查
+
+# ---------------------------------------------------------------------
+# 标签文件的列名（E-DAIC 官方格式；如果你的文件列名不同，改这里）
+# ---------------------------------------------------------------------
+labels:
+  split_files: {train: train_split.csv, dev: dev_split.csv, test: test_split.csv}
+  detailed_file: Detailed_PHQ8_Labels.csv
+  id_col: Participant_ID
+  total_col: PHQ_Score
+  binary_col: PHQ_Binary
+  gender_col: Gender
+  item_cols:                           # 顺序即题号 k = 1..8
+    - PHQ_8NoInterest
+    - PHQ_8Depressed
+    - PHQ_8Sleep
+    - PHQ_8Tired                       # k = 4
+    - PHQ_8Appetite
+    - PHQ_8Failure
+    - PHQ_8Concentrating
+    - PHQ_8Moving                      # k = 8
+  ai_id_range: [600, 718]              # 这个范围内为 AI 采集，其余为 WoZ
+
+# ---------------------------------------------------------------------
+# K 折划分（两个阶段共用同一套）
+# ---------------------------------------------------------------------
+splits:
+  n_folds: 5
+  phq_bin_edges: [0, 5, 10, 15, 20, 25]   # PHQ 分箱，用于分层
+  stratify_by: [phq_bin, gender, mode]    # 分层变量；某层人数太少时自动从后往前去掉变量
+  seed: 42
+
+# ---------------------------------------------------------------------
+# 预处理（全部冻结，无训练）
+# ---------------------------------------------------------------------
+preprocessing:
+  sample_rate: 16000
+
+  vad:
+    threshold: 0.5             # Silero 语音概率阈值
+    min_speech_ms: 250
+    min_silence_ms: 300
+    speech_pad_ms: 100
+
+  whisperx:
+    model: large-v3
+    language: en
+    compute_type: float16      # GPU: float16；CPU: int8
+    batch_size: 16
+    num_speakers: 2
+    hf_token_env: HF_TOKEN     # pyannote 需要 HuggingFace token，从这个环境变量读
+    utterance_gap_sec: 1.0     # 同一说话人两个词间隔超过它就切成两句话
+
+  ellie:
+    question_bank: resources/ellie_questions.csv
+    match_threshold: 0.80      # 模糊匹配相似度阈值（0–1）
+    unmatched_as: followup     # Ellie 说的未匹配句子按什么处理：followup / backchannel
+
+  qa:
+    keep_rapport: false        # 是否保留寒暄题（消融 A5）
+    trim_opening: true         # 删到第一个主问题之前
+    trim_closing: true         # 从告别语开始删掉
+
+  segments:
+    min_sec: 1.0               # 回答短于它不生成音频片段
+    max_sec: 20.0              # 片段最长时长
+    margin_sec: 0.2            # 两端余量
+    split_pause_sec: 0.3       # 切长片段时优先选的最小停顿
+
+  wavlm:
+    model: microsoft/wavlm-large
+    layers: all                # all 或层号列表，如 [0, 6, 12, 18, 24]（存不下时用）
+    dtype: float16
+    max_chunk_sec: 20.0
+
+# ---------------------------------------------------------------------
+# Stage 1：文本逐题模型（LLM + LoRA）
+# ---------------------------------------------------------------------
+stage1:
+  retrieval:
+    encoder: BAAI/bge-large-en-v1.5
+    query_instruction: "Represent this sentence for searching relevant passages: "
+    item_queries: resources/item_queries.yaml
+    use_question_map: true     # 关掉即消融 A4（只用 embedding）
+    top_n: 6                   # 推理时每题的候选数 N
+    store_top: 8               # 保存前多少个候选（≥ augment.n_max）
+    evidence_threshold: 0.60   # max_j r_ijk 低于它则 ev_ik = 0；需人工抽查后校准
+    batch_size: 64
+
+  model:
+    base: Qwen/Qwen2.5-7B-Instruct     # 备选 meta-llama/Llama-3.1-8B-Instruct
+    dtype: bfloat16
+    load_in_4bit: false                # 显存不够时打开（QLoRA）
+    attn_implementation: sdpa          # 装了 flash-attn 可改 flash_attention_2
+    max_length: 2048
+    max_answer_words: 150      # 每个回答在提示词里最多保留多少词，防止超出 max_length
+    gradient_checkpointing: true
+    use_chat_template: true
+    score_tokens: ["0", "1", "2", "3"]
+    lora:
+      r: 16
+      alpha: 32
+      dropout: 0.05
+      target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+  loss:
+    mu: 0.5                    # 期望值平方误差相对交叉熵的权重
+    lambda_sum: 0.5            # session 级总分项权重
+    class_weight: inv_sqrt_freq    # inv_sqrt_freq / none
+    class_weight_smoothing: 1.0    # 频数加平滑，防止某类频数为 0
+
+  train:
+    sessions_per_step: 2       # 每步 2 个 session × 8 题 = 16 条序列
+    micro_batch_sessions: 1    # 每次前向的 session 数；显存不够设 1，靠梯度累积凑满 sessions_per_step
+    lr: 1.0e-4
+    weight_decay: 0.0
+    warmup_ratio: 0.05
+    max_epochs: 5
+    patience: 2                # 验证 MAE 连续多少个 epoch 不降就停
+    max_grad_norm: 1.0
+    eval_batch_sessions: 4
+
+  augment:
+    n_min: 4                   # 训练时 N 在 [n_min, n_max] 随机
+    n_max: 8
+    drop_one_prob: 0.3         # 随机丢掉 1 个候选的概率
+    shuffle_prob: 0.2          # 打乱候选顺序的概率（否则按时间顺序）
+
+# ---------------------------------------------------------------------
+# Stage 2：音频残差模型（WavLM 特征 + 门控注意力 MIL）
+# ---------------------------------------------------------------------
+stage2:
+  teacher:
+    kind: oof                  # oof / in_sample（in_sample 即消融 A8）
+    stage1_dir: null           # 老师预测所在目录；null = outputs/<experiment>/stage1
+
+  model:
+    proj_dim: 256
+    attn_dim: 128
+    hidden_dim: 128
+    dropout: 0.3
+    max_delta: 6.0             # 总分最大修正量（分）
+    pooling: attention         # attention / mean（mean 即消融 A9）
+    use_pos: true              # 注意力打分时是否拼上片段位置
+
+  loss:
+    w_tired: 0.5
+    w_mov: 0.5
+    lambda_res: 0.05
+    ccc_weight: 0.5
+    huber_delta: 0.1           # 归一化尺度（/24），约 2.4 分
+    use_lds: false             # LDS 样本权重
+    lds_sigma: 2.0
+
+  train:
+    lr: 1.0e-3
+    weight_decay: 1.0e-2
+    max_epochs: 300
+    patience: 30
+    max_segments: 64           # 训练时每个 session 每个 epoch 最多抽多少片段
+    batch_sessions: null       # null = 整个训练折一个 batch
+    seeds: [0, 1, 2, 3, 4]
+
+  grid:                        # train_stage2.py --grid 时搜索这些组合，按 CV 总分 CCC 选
+    w_tired: [0.0, 0.25, 0.5]
+    w_mov: [0.0, 0.25, 0.5]
+    lambda_res: [0.01, 0.05, 0.1]
+
+# ---------------------------------------------------------------------
+# 融合与评估
+# ---------------------------------------------------------------------
+fusion:
+  beta_grid: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+evaluation:
+  severity_bin_edges: [0, 5, 10, 15, 20, 25]
+  report_ai_subset: true

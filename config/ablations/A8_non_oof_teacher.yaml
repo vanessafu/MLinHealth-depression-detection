@@ -1,0 +1,5 @@
+# A8：老师用非 OOF 的预测（先在 main 实验里跑 train_stage1.py --full-fit）
+_base_: ../default.yaml
+experiment: {name: A8_non_oof_teacher}
+stage2:
+  teacher: {kind: in_sample, stage1_dir: outputs/main/stage1}

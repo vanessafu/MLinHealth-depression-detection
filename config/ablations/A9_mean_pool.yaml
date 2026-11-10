@@ -1,0 +1,6 @@
+# A9：去掉 MIL 注意力，改为均值池化
+_base_: ../default.yaml
+experiment: {name: A9_mean_pool}
+stage2:
+  teacher: {stage1_dir: outputs/main/stage1}
+  model: {pooling: mean}
