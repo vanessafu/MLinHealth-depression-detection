@@ -61,10 +61,10 @@ preprocessing:
   sample_rate: 16000
 
   vad:
-    threshold: 0.5             # Silero 语音概率阈值
-    min_speech_ms: 250
-    min_silence_ms: 300
-    speech_pad_ms: 100
+    threshold: 0.45 
+    min_speech_ms: 500
+    min_silence_ms: 800
+    speech_pad_ms: 50
 
   whisperx:
     model: large-v3
