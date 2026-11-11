@@ -42,19 +42,19 @@ def process_session(sid: int, wav_path: Path, cfg: Cfg, steps: list[str], device
     # --- VAD ---
     p_vad = interim_path(cfg, "vad", sid, "json")
     if "vad" in steps and (overwrite or not p_vad.exists()):
+        from .snr import analyze
         from .vad import run_vad
 
-        _dump({"duration": len(get_wav()) / sr, "speech": run_vad(get_wav(), cfg)}, p_vad)
+        vc = cfg.preprocessing.vad
+        _dump({"duration": len(get_wav()) / sr, "snr": analyze(get_wav(), cfg),
+               "speech_by_threshold": {str(t): run_vad(get_wav(), cfg, t) for t in vc.thresholds}}, p_vad)
 
     # --- WhisperX ---
     p_tr = interim_path(cfg, "transcripts", sid, "json")
     if "transcribe" in steps and (overwrite or not p_tr.exists()):
         from .transcribe import transcribe
-        from .vad import mask_non_speech
 
-        vad = _load(p_vad)
-        masked = mask_non_speech(get_wav(), vad["speech"], sr)
-        _dump(transcribe(masked, cfg, device), p_tr)
+        _dump(transcribe(get_wav(), _load(p_vad)["speech_by_threshold"], cfg, device), p_tr)
 
     # --- Ellie + Q-A pairs ---
     p_qa = interim_path(cfg, "qa_pairs", sid, "json")

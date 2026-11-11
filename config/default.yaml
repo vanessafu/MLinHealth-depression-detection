@@ -60,24 +60,49 @@ splits:
 preprocessing:
   sample_rate: 16000
 
+  snr:                         # 每个 session 的信噪比诊断（src/preprocessing/snr.py），写进 vad/<sid>.json
+    smooth_s: 0.5              # 能量 / Silero 概率的平滑窗口
+    active_above_floor_db: 8.0 # 比底噪高这么多才算 "有声帧"
+
   vad:
-    threshold: 0.45 
-    min_speech_ms: 500
-    min_silence_ms: 800
-    speech_pad_ms: 50
+    thresholds: [0.12, 0.7]    # 每个阈值各跑一次分轨转写再融合：第一个（低）为主，后面的（高）补漏（transcribe.py）
+    min_speech_ms: 100
+    min_silence_ms: 300
+    speech_pad_ms: 100
 
   whisperx:
     model: large-v3
     language: en
     compute_type: float16      # GPU: float16；CPU: int8
     batch_size: 16
-    num_speakers: 2
-    hf_token_env: HF_TOKEN     # pyannote 需要 HuggingFace token，从这个环境变量读
     utterance_gap_sec: 1.0     # 同一说话人两个词间隔超过它就切成两句话
+
+  ellie_track:                 # quiet 轨：VAD 区间挖掉后降噪 + 逐段 RMS 标准化（把轻的那个人提上来）
+    pad_s: 0.3                 # 挖掉 VAD 区间时两边多挖的秒数（防止响的人的尾音漏进 quiet 轨）
+    target_db: -24.0           # 每段间隙标准化到的响度（有声帧）
+    max_gain_db: 50.0          # 最多放大多少 dB
+    min_snr_db: 8.0            # 间隙比底噪高不到这么多就当静音，不放大（防 Whisper 幻觉）
+    prop_decrease: 1.0         # noisereduce 降噪强度（0–1）
+    n_std: 1.5                 # noisereduce 门限（几倍噪声标准差）
+
+  speaker:                     # 逐句判别 Ellie / 受访者（src/preprocessing/speaker.py）；3 个人工标注 session 上网格 + 留一交叉验证选出
+    phrases: resources/ellie_phrases.txt   # 问题库之外的 Ellie 常见说法（只用于判别）
+    text_center: 0.6           # 和 Ellie 说法的相似度高于它 -> 倾向 Ellie
+    text_scale: 0.05
+    text_weight: 1.0
+    level_weight: 0.5          # 响度线索权重上限；实际权重 = level_weight * sigmoid((d' - level_d0) / level_tau)
+    level_d0: 3.0              # 两人响度分离度 d' 超过它才主要信响度（309 d'=5、676 d'=4、308 d'=2.6）
+    level_tau: 0.5
+    track_weight: 2.0          # 来自 quiet 轨 -> 属于 "轻" 的那个人
+    question_weight: 1.0       # 问句 -> 倾向 Ellie
+    first_person_weight: 0.0   # 第一人称词比例（网格里没帮助，留作开关）
+    bias: -0.5
+    anchor_score: 0.8          # 相似度 >= 它的句子用来判定 "Ellie 是响的还是轻的那个人"
+    opening_min_score: 0.8     # 访谈开始 = 第一句和开场白相似度 >= 它的 Ellie 句
 
   ellie:
     question_bank: resources/ellie_questions.csv
-    match_threshold: 0.80      # 模糊匹配相似度阈值（0–1）
+    match_threshold: 0.60      # 模糊匹配相似度阈值（0–1）
     unmatched_as: followup     # Ellie 说的未匹配句子按什么处理：followup / backchannel
 
   qa:

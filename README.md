@@ -1,6 +1,6 @@
 # MLinHealth-depression-detection
 
-E-DAIC PHQ-8 预测：只用访谈录音 `XXX_AUDIO.wav`，Stage 1 用 LLM + LoRA 逐题打分（文本来自 WhisperX 转写），Stage 2 用冻结的 WavLM 特征 + 注意力 MIL 学习文本预测的残差，两阶段用 5 折 OOF 连接，最后按 β 融合。
+E-DAIC PHQ-8 预测：只用访谈录音 `XXX_AUDIO.wav`，Stage 1 用 LLM + LoRA 逐题打分（文本来自 WhisperX 分轨转写：受访者轨 + 增强后的 Ellie 轨），Stage 2 用冻结的 WavLM 特征 + 注意力 MIL 学习文本预测的残差，两阶段用 5 折 OOF 连接，最后按 β 融合。
 
 - 超参数和“改了要重跑什么”：[config/README.md](config/README.md)
 - 设计细节：《E-DAIC PHQ-8 预测管线手册》
@@ -47,7 +47,6 @@ uv pip install -e ".[dev]"
 # GPU 机器（Linux + CUDA）
 uv venv --python 3.11 .venv && source .venv/bin/activate
 uv pip install -e ".[all]"          # = preprocess + stage1 + dev
-export HF_TOKEN=hf_xxx              # pyannote 说话人分离需要；还要在 HF 上接受 pyannote 模型的使用条款
 ```
 
 依赖分组见 [pyproject.toml](pyproject.toml)：`preprocess`（silero-vad、whisperx、WavLM）、`stage1`（transformers、peft、sentence-transformers、bitsandbytes）。

@@ -20,10 +20,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# 预处理：VAD + WhisperX（转写 / 对齐 / 说话人分离）+ WavLM 特征
+# 预处理：VAD + WhisperX（分轨转写 / 对齐）+ WavLM 特征
 preprocess = [
     "silero-vad>=5.1",
     "whisperx>=3.3",
+    "noisereduce>=3.0",        # Ellie 轨降噪
     "torchaudio>=2.3",
     "transformers>=4.44",
 ]

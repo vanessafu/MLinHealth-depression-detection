@@ -66,13 +66,13 @@
 
 | 键 | 默认值 | 类别 | 范围 / 建议 | 从哪一步重跑 |
 | --- | --- | --- | --- | --- |
-| `vad.threshold` | 0.5 | 📏 | 0.3–0.6。转写里漏掉了轻声的回答就调低 | vad |
+| `vad.thresholds` | [0.12, 0.7] | 📏 | 低阈值为主、高阈值补漏，两次分轨转写融合（单一阈值在不同录音上最优值相反） | vad, transcribe |
 | `vad.min_speech_ms` / `min_silence_ms` / `speech_pad_ms` | 250 / 300 / 100 | 🔒 | | vad |
 | `whisperx.model` | `large-v3` | 🔒 | 显存紧张可用 `large-v3-turbo` | transcribe |
 | `whisperx.compute_type` | `float16` | 🖥️ | GPU 用 `float16`，CPU 用 `int8` | transcribe |
 | `whisperx.batch_size` | 16 | 🖥️ | 显存不够就调小，不影响结果 | transcribe |
-| `whisperx.num_speakers` | 2 | 🔒 | 固定 2 个说话人（Ellie + 被试） | transcribe |
-| `whisperx.hf_token_env` | `HF_TOKEN` | 🖥️ | pyannote 需要 HuggingFace token，运行前 `export HF_TOKEN=...`，并在 HF 上接受 pyannote 模型的使用条款 | transcribe |
+| `ellie_track.*` | 见 default.yaml | 📏 | quiet 轨：VAD 区间挖掉后降噪 + 逐段 RMS 标准化（录音里一个人常比另一个小 7–30 dB） | transcribe |
+| `speaker.*` | 见 default.yaml | 📏 | 逐句判别 Ellie / 受访者：文本 / 响度（按 d' 自适应）/ 轨道 / 问句 加权；用 `scripts/analysis/tune_speaker.py` 在人工标注上重新调 | transcribe |
 | `whisperx.utterance_gap_sec` | 1.0 | 📏 | 同一个人两个词之间超过这个间隔就切成两句话 | qa |
 | `ellie.question_bank` | `resources/ellie_questions.csv` | 📏 | **需要你补全**，见下文“资源文件” | qa |
 | `ellie.match_threshold` | 0.80 | 📏 | 0.75–0.90。识别 Ellie 或分类她的话时漏得多就调低，误匹配多就调高 | qa |
