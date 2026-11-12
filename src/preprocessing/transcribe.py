@@ -1,4 +1,8 @@
-"""Step 3: 分轨转写（WhisperX ASR + 词级对齐，不用 pyannote）+ 多阈值融合 + 逐句说话人判别。
+"""Step 3: 转写 + 逐句说话人判别。preprocessing.transcribe.method 选方法：
+  compressed（默认）：transcribe_compressed，见该函数说明
+  two_track：transcribe，下面是它的做法
+
+two_track：分轨转写（WhisperX ASR + 词级对齐，不用 pyannote）+ 多阈值融合 + 逐句说话人判别。
 
   对每个 VAD 阈值：loud 轨 = 原始音频只留 VAD 区间；quiet 轨 = VAD 区间挖掉后降噪 + 逐段 RMS 标准化（enhance.py）
   多个阈值的结果融合：以第一个（低）阈值为主，后面的（高）阈值只补前面没有的内容（fuse_runs）
@@ -94,6 +98,72 @@ def transcribe(wav: np.ndarray, speech_by_threshold: dict[str, list], cfg: Cfg, 
     t0 = interview_start(segs, bank, cfg.preprocessing.speaker.opening_min_score)
     segs = [s for s in segs if s["end"] > t0 - 0.5]
     return {"segments": segs, "interview_start": t0, **info}
+
+
+def _faster_whisper(cfg: Cfg, device: str):
+    if "fw" not in _CACHE:
+        from faster_whisper import WhisperModel
+
+        wc = cfg.preprocessing.whisperx
+        _CACHE["fw"] = WhisperModel(wc.model, device=device, compute_type=wc.compute_type)
+    return _CACHE["fw"]
+
+
+def transcribe_compressed(wav: np.ndarray, cfg: Cfg, device: str) -> dict:
+    """method = compressed：不分轨、不降噪，两路转写词级合并 + 声纹判说话人（src/preprocessing/{compress,
+    asr_merge,voiceprint}.py；5 个 session 上的对比：官方转写召回 0.967 vs two_track 0.958）。
+
+      comp : 原始 wav 逐帧压缩（轻的人抬上来）-> faster-whisper 无 VAD -> WhisperX 对齐       主转写
+      raw  : 原始 wav -> WhisperX（pyannote VAD，chunk_size 秒的块）-> 对齐                   补漏 + 漂移参考
+      novad: 原始 wav -> faster-whisper 无 VAD -> 对齐                                       只当漂移参考
+    合并：comp 为主；comp 里时间戳漂移的段降级到 raw 之后再补；去幻觉、折叠循环。
+    """
+    import whisperx
+
+    from .asr_merge import merge_passes, to_units
+    from .compress import compress
+    from .ellie import QuestionBank
+    from .speaker import interview_start, load_phrases, text_scores
+    from .voiceprint import assign_speakers_voiceprint
+    from ..config import resolve
+
+    wc, tc = cfg.preprocessing.whisperx, cfg.preprocessing.transcribe
+    sr = cfg.preprocessing.sample_rate
+    asr, (align_model, meta) = _models(cfg, device)
+    fw = _faster_whisper(cfg, device)
+
+    def align(segs, audio):
+        return whisperx.align(segs, align_model, meta, audio, device, return_char_alignments=False)["segments"]
+
+    def no_vad(audio):
+        it, _ = fw.transcribe(audio, language=wc.language, vad_filter=False, beam_size=5,
+                              condition_on_previous_text=False)
+        return align([{"start": s.start, "end": s.end, "text": s.text} for s in it], audio)
+
+    comp_wav, comp_info = compress(wav, sr, **tc.compress)
+    passes = {
+        "comp": no_vad(comp_wav),
+        "raw": align(asr.transcribe(wav, batch_size=wc.batch_size, language=wc.language,
+                                    chunk_size=tc.chunk_size)["segments"], wav),
+        "novad": no_vad(wav),
+    }
+    units, merge_info = merge_passes(passes, ["comp", "raw"], refs=["raw", "novad"],
+                                     min_word_score=tc.min_word_score, dup_win=tc.dup_win)
+    bank = QuestionBank(cfg)
+    phrases = load_phrases(bank, resolve(cfg.preprocessing.speaker.phrases))
+    for u, s in zip(units, text_scores(units, phrases)):     # 和 Ellie 台词库的相似度，判说话人用
+        u["text_score"] = float(s)
+
+    # 访谈开始：在各路原始转写里找开场白取最早（不受合并 / 漂移保护影响）
+    all_u = sorted((u for k in ("comp", "raw", "novad") for u in to_units(passes[k], k, 2.0)), key=lambda u: u["start"])
+    t0 = interview_start(all_u, bank, cfg.preprocessing.speaker.opening_min_score)
+    units = [u for u in units if u["end"] > t0 - 0.5]
+
+    emb_audio = comp_wav if tc.speaker.embed_audio == "compressed" else wav
+    spk_info = assign_speakers_voiceprint(units, wav, emb_audio, cfg, device)
+    return {"segments": units, "interview_start": t0, "method": "compressed", "compress": comp_info,
+            "merge": merge_info, "speaker": spk_info,
+            "n_pass_segments": {k: len(v) for k, v in passes.items()}}
 
 
 def words_to_utterances(result: dict, gap_sec: float) -> list[dict]:

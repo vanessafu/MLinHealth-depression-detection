@@ -51,10 +51,23 @@ def process_session(sid: int, wav_path: Path, cfg: Cfg, steps: list[str], device
 
     # --- WhisperX ---
     p_tr = interim_path(cfg, "transcripts", sid, "json")
+    method = cfg.preprocessing.transcribe.method
+    if "transcribe" in steps and p_tr.exists() and not overwrite:
+        made = _load(p_tr).get("method", "two_track")     # two_track 的转写没写 method 字段
+        if made != method:
+            raise ValueError(f"{p_tr} 是 {made} 的转写，配置是 {method}：换方法请用对应配置"
+                             f"（config/two_track.yaml 有单独的 interim 目录）或加 --overwrite")
     if "transcribe" in steps and (overwrite or not p_tr.exists()):
-        from .transcribe import transcribe
+        if method == "compressed":
+            from .transcribe import transcribe_compressed
 
-        _dump(transcribe(get_wav(), _load(p_vad)["speech_by_threshold"], cfg, device), p_tr)
+            _dump(transcribe_compressed(get_wav(), cfg, device), p_tr)
+        elif method == "two_track":
+            from .transcribe import transcribe
+
+            _dump(transcribe(get_wav(), _load(p_vad)["speech_by_threshold"], cfg, device), p_tr)
+        else:
+            raise ValueError(f"unknown preprocessing.transcribe.method: {method}")
 
     # --- Ellie + Q-A pairs ---
     p_qa = interim_path(cfg, "qa_pairs", sid, "json")

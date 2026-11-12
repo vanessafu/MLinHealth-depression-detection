@@ -64,8 +64,28 @@ preprocessing:
     smooth_s: 0.5              # 能量 / Silero 概率的平滑窗口
     active_above_floor_db: 8.0 # 比底噪高这么多才算 "有声帧"
 
+  transcribe:                  # 转写步骤（src/preprocessing/transcribe.py）
+    method: compressed         # compressed：压缩 + 无 VAD 主转写，WhisperX 补漏，声纹判说话人
+                               # 切回原版：--config config/two_track.yaml（单独的 interim 目录，缓存不混）
+                               # two_track：旧的 Silero 分轨（loud / quiet 轨）+ 融合，用下面的 vad / ellie_track / speaker
+    chunk_size: 8              # raw 路 WhisperX 的 VAD 合并块（也是对齐窗口）秒数；30 时轻声段对不上会整块偏 3 s+
+    compress:                  # src/preprocessing/compress.py；不降噪（降噪会把和底噪一样响的 Ellie 抹掉）
+      target_db: -24.0         # 局部响度抬到多少
+      max_gain_db: 30.0        # 最多放大多少
+      gate_db: 3.0             # 比底噪高不到它的帧不放大（否则 Whisper 在放大的底噪上循环幻觉）
+    min_word_score: 0.3        # 补漏单元平均对齐分数低于它当幻觉丢掉
+    dup_win: 15.0              # 补漏时，这么多秒内已有相似文本就当重复（两路时间戳可能差好几秒）
+    speaker:                   # 声纹判说话人（src/preprocessing/voiceprint.py）
+      model: pyannote/wespeaker-voxceleb-resnet34-LM
+      embed_audio: raw         # raw / compressed：声纹从哪个音频上取
+      knn: 7
+      anchor_e: 0.85           # 台词相似度 >= 它（>= 3 词）= Ellie 锚点
+      anchor_p: 0.5            # 台词相似度 < 它（>= 5 词）= 受访者锚点
+      voice_weight: 3.0
+      text_weight: 4.0
+
   vad:
-    thresholds: [0.12, 0.7]    # 每个阈值各跑一次分轨转写再融合：第一个（低）为主，后面的（高）补漏（transcribe.py）
+    thresholds: [0.12, 0.7]    # 每个阈值各跑一次分轨转写再融合：第一个（低）为主，后面的（高）补漏（transcribe.py；只用于 two_track）
     min_speech_ms: 100
     min_silence_ms: 300
     speech_pad_ms: 100

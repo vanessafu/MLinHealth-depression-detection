@@ -48,3 +48,14 @@ that sounds like a great situation
 that's good
 i understand
 let's come back to that later
+# 开场白的单句（上面是连成一行的，按句转写时单句匹配分数低）
+hi i'm ellie
+thanks for coming in today
+think of me as a friend
+i don't judge
+i can't i'm a computer
+i'm not a therapist
+and please feel free to tell me anything
+your answers are totally confidential
+are you okay with this
+i'm here to learn about people and would love to learn about you

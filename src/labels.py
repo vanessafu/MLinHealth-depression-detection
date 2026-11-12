@@ -60,7 +60,7 @@ def consistency_report(lab: pd.DataFrame) -> dict:
     """Check sum(items) == PHQ_Score and PHQ_Binary == (score >= 10)."""
     rep = {"n_sessions": int(len(lab)), "per_split": lab["split"].value_counts().to_dict()}
     has_items = lab[ITEM_COLS].notna().all(axis=1) & lab["phq_total"].notna()
-    s = lab.loc[has_items, ITEM_COLS].sum(axis=1)
+    s = lab[ITEM_COLS].sum(axis=1)                         # 全表求和，和 phq_total 同索引才能比较
     bad_sum = lab.loc[has_items & (s != lab["phq_total"]), "sid"].tolist()
     rep["sum_mismatch_sids"] = bad_sum
     if "phq_binary" in lab:
@@ -70,5 +70,6 @@ def consistency_report(lab: pd.DataFrame) -> dict:
     tr = lab[lab["split"] == "train"]
     rep["train_tired3_counts"] = tr["tired3"].value_counts().sort_index().to_dict()
     rep["train_mov_counts"] = tr["mov"].value_counts().sort_index().to_dict()
-    rep["mode_by_split"] = lab.groupby(["split", "mode"]).size().to_dict()
+    # 键用 "split/mode" 字符串：元组键 json.dumps 会报错（prepare_labels.py 打印报告时崩溃）
+    rep["mode_by_split"] = {f"{s}/{m}": int(n) for (s, m), n in lab.groupby(["split", "mode"]).size().items()}
     return rep

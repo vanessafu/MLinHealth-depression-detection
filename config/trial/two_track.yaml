@@ -1,0 +1,5 @@
+# 试跑 1：原本的管线（Silero 分轨 + 融合 + 加权判说话人）
+_base_: base.yaml
+experiment: {name: trial_two_track}
+paths: {interim: data/interim_two_track, features: data/features_two_track}
+preprocessing: {transcribe: {method: two_track}}

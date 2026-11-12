@@ -1,0 +1,12 @@
+# 试跑：只用官方 dev 集的 29 个 session，在试跑里把它们当训练池做 5 折（OOF）比较三种转写来源。
+# 标签 / 折划分放在 data/trial/ 下，不碰官方的 data/labels 和 data/splits。
+# data/trial/labels 由 scripts/analysis/trial_setup.py 生成（dev_split.csv 的行改写成 train_split.csv）。
+_base_: ../default.yaml
+paths:
+  labels_dir: data/trial/labels
+  splits: data/trial/splits
+stage1:
+  model:
+    load_in_4bit: true         # 单卡 4090（24 GB）：QLoRA
+    max_answer_words: 100      # 默认 150 时 two_track 最长提示词 1792 token，一个 session 8 条一起反传会 OOM
+                               # （fold 1 实测 22.7 GB）；100 时最长 1375。三种转写同一设置

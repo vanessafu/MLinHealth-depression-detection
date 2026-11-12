@@ -1,0 +1,5 @@
+# 试跑 2：Ellie 的问题 / 时间取自新方法转写，受访者回答换成 E-DAIC 官方 <sid>_Transcript.csv
+# Q-A 对由 scripts/analysis/official_qa.py 生成（不走 run_preprocess.py 的 transcribe 步骤）
+_base_: base.yaml
+experiment: {name: trial_official}
+paths: {interim: data/interim_official, features: data/features_official}

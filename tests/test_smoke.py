@@ -190,3 +190,84 @@ def test_stage2_cv_and_eval(cfg):
 def test_ccc():
     y = np.arange(10.0)
     assert ccc(y, y) == pytest.approx(1.0) and ccc(y, y + 5) < 1.0
+
+
+# ---------------------------------------------------------------- transcribe.method = compressed
+def _seg(t0, t1, text):
+    toks = text.split()
+    step = (t1 - t0) / len(toks)
+    return {"start": t0, "end": t1, "text": text,
+            "words": [{"word": w, "start": t0 + i * step, "end": t0 + (i + 1) * step - 0.01, "score": 0.9}
+                      for i, w in enumerate(toks)]}
+
+
+def test_compress_lifts_quiet_keeps_loud():
+    from src.preprocessing.compress import compress
+
+    sr = 16000
+    rng = np.random.default_rng(0)
+    t = np.arange(sr) / sr
+    tone = np.sin(2 * np.pi * 220 * t).astype(np.float32)
+    wav = np.concatenate([1e-4 * rng.standard_normal(sr), 0.3 * tone, 0.003 * tone,
+                          1e-4 * rng.standard_normal(sr)]).astype(np.float32)
+    out, _ = compress(wav, sr)
+    rms = lambda x: float(np.sqrt((x ** 2).mean()))  # noqa: E731
+    assert abs(rms(out[sr + 4000:2 * sr - 4000]) / rms(wav[sr + 4000:2 * sr - 4000]) - 1) < 0.1   # loud untouched
+    assert rms(out[2 * sr + 4000:3 * sr - 4000]) > 10 * rms(wav[2 * sr + 4000:3 * sr - 4000])    # quiet lifted
+    assert rms(out[:sr - 4000]) < 2 * rms(wav[:sr - 4000])                                       # noise gated
+
+
+def test_asr_merge_repeats_drift_and_fill():
+    from src.preprocessing.asr_merge import collapse_repeats, drift_guard, merge_passes
+
+    loop = [_seg(10 + i, 10.8 + i, "i'm from new york") for i in range(5)]
+    out, n = collapse_repeats(loop, [_seg(10, 11, "something else")])
+    assert len(out) == 1 and n == 4
+    real = [_seg(10 + i, 10.8 + i, "i'm trying") for i in range(4)]
+    assert len(collapse_repeats(real, [_seg(10, 14, "i'm trying i'm trying i'm trying")])[0]) == 4
+
+    raw = [_seg(20, 22, "think of me as a friend today"), _seg(30, 32, "your answers are totally confidential"),
+           _seg(50, 52, "where are you from originally")]
+    comp = [_seg(14, 16, "think of me as a friend today"), _seg(22, 24, "your answers are totally confidential"),
+            _seg(50, 52, "where are you from originally"), _seg(60, 62, "only the quiet pass heard this")]
+    kept, demoted = drift_guard(comp, [raw])
+    assert [s["text"] for s in demoted][:2] == [comp[0]["text"], comp[1]["text"]]
+    assert comp[3] in kept
+
+    units, info = merge_passes({"comp": comp, "raw": raw, "novad": raw}, ["comp", "raw"], refs=["raw", "novad"])
+    texts = [u["text"] for u in units]
+    assert "only the quiet pass heard this" in texts                     # comp-only content kept
+    assert sum("think of me as a friend" in t for t in texts) == 1       # drifted duplicate not doubled
+    starts = {u["text"]: u["start"] for u in units}
+    assert abs(starts["think of me as a friend today"] - 20) < 0.5       # raw timing wins in drifted region
+
+
+def test_script_score_and_voice_classify():
+    from src.preprocessing.asr_merge import to_units
+    from src.preprocessing.speaker import text_scores
+    from src.preprocessing.voiceprint import classify
+
+    units = to_units([_seg(0, 2, "Hi, I'm Allie."), _seg(3, 5, "I moved here last year.")], "comp", 2.0)
+    sc = text_scores(units, ["hi i'm ellie", "thanks for coming in today"])
+    assert sc[0] > 0.8 and sc[1] < 0.5
+
+    rng = np.random.default_rng(0)
+    cE, cP = rng.standard_normal(16), rng.standard_normal(16)
+    is_e = np.array([1] * 8 + [0] * 12, bool)
+    emb = np.stack([(cE if e else cP) + 0.3 * rng.standard_normal(16) for e in is_e])
+    emb /= np.linalg.norm(emb, axis=1, keepdims=True)
+    txt = np.where(is_e, 0.6, 0.3)
+    txt[:3] = 0.95                                                        # Ellie anchors
+    nw = np.full(20, 6)
+    vc = {"anchor_e": 0.85, "anchor_p": 0.5, "knn": 5, "voice_weight": 3.0, "text_weight": 4.0}
+    pred, _, info = classify(emb, txt, nw, np.full(20, 2.0), np.zeros(20), vc)
+    assert (pred == is_e).all() and info["n_anchor_E"] == 3
+
+
+def test_switch_to_two_track_preset():
+    from src.config import load_config
+
+    d, t = load_config("config/default.yaml"), load_config("config/two_track.yaml")
+    assert d.preprocessing.transcribe.method == "compressed" and t.preprocessing.transcribe.method == "two_track"
+    assert d.paths.interim != t.paths.interim                                    # 缓存分开
+    assert d.to_dict()["stage1"] == t.to_dict()["stage1"]                         # 其余不变

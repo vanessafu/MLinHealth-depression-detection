@@ -66,13 +66,17 @@
 
 | 键 | 默认值 | 类别 | 范围 / 建议 | 从哪一步重跑 |
 | --- | --- | --- | --- | --- |
-| `vad.thresholds` | [0.12, 0.7] | 📏 | 低阈值为主、高阈值补漏，两次分轨转写融合（单一阈值在不同录音上最优值相反） | vad, transcribe |
+| `transcribe.method` | `compressed` | 🧪 | **切回原版：`--config config/two_track.yaml`**（只改方法和 interim 目录，缓存不混；在同一目录里换方法会报错，防止误用另一种方法的转写）。`compressed`：逐帧压缩（不降噪）+ 无 VAD 主转写，WhisperX 补漏，声纹判说话人；`two_track`：旧的 Silero 分轨 + 融合（下面 `vad.thresholds` / `ellie_track.*` / `speaker.*` 只对它生效，`speaker.phrases` / `speaker.opening_min_score` 除外：两种方法都用）。5 个 session 上 compressed：官方转写召回 0.967 vs 0.958，Ellie 台词命中 43.6 vs 39.0（`src/preprocessing/compress.py` / `asr_merge.py` / `voiceprint.py`；对比实验脚本已删，见 git 历史） | transcribe |
+| `transcribe.chunk_size` | 8 | 📏 | raw 路 WhisperX 的块长（秒）。30 时轻声段对不上会把整块时间戳带偏 3 s 以上 | transcribe |
+| `transcribe.compress.*` | -24 / 30 / 3 dB | 📏 | 目标响度 / 最大增益 / 门限。门限去掉会在放大的底噪上出循环幻觉 | transcribe |
+| `transcribe.speaker.*` | 见 default.yaml | 📏 | 声纹（wespeaker）kNN + 台词 + 响度判说话人；`embed_audio` 选声纹从原始还是压缩后音频上取 | transcribe |
+| `vad.thresholds` | [0.12, 0.7] | 📏 | 低阈值为主、高阈值补漏，两次分轨转写融合（单一阈值在不同录音上最优值相反）。只用于 `two_track` | vad, transcribe |
 | `vad.min_speech_ms` / `min_silence_ms` / `speech_pad_ms` | 250 / 300 / 100 | 🔒 | | vad |
 | `whisperx.model` | `large-v3` | 🔒 | 显存紧张可用 `large-v3-turbo` | transcribe |
 | `whisperx.compute_type` | `float16` | 🖥️ | GPU 用 `float16`，CPU 用 `int8` | transcribe |
 | `whisperx.batch_size` | 16 | 🖥️ | 显存不够就调小，不影响结果 | transcribe |
 | `ellie_track.*` | 见 default.yaml | 📏 | quiet 轨：VAD 区间挖掉后降噪 + 逐段 RMS 标准化（录音里一个人常比另一个小 7–30 dB） | transcribe |
-| `speaker.*` | 见 default.yaml | 📏 | 逐句判别 Ellie / 受访者：文本 / 响度（按 d' 自适应）/ 轨道 / 问句 加权；用 `scripts/analysis/tune_speaker.py` 在人工标注上重新调 | transcribe |
+| `speaker.*` | 见 default.yaml | 📏 | 逐句判别 Ellie / 受访者：文本 / 响度（按 d' 自适应）/ 轨道 / 问句 加权，只对 `two_track` 生效（调参脚本 `tune_speaker.py` 已删，见 git 历史）。例外：`phrases`（台词库）和 `opening_min_score`（访谈开始）两种方法都用 | transcribe |
 | `whisperx.utterance_gap_sec` | 1.0 | 📏 | 同一个人两个词之间超过这个间隔就切成两句话 | qa |
 | `ellie.question_bank` | `resources/ellie_questions.csv` | 📏 | **需要你补全**，见下文“资源文件” | qa |
 | `ellie.match_threshold` | 0.80 | 📏 | 0.75–0.90。识别 Ellie 或分类她的话时漏得多就调低，误匹配多就调高 | qa |

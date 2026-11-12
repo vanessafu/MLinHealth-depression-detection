@@ -1,0 +1,5 @@
+# 试跑 3：新方法（压缩 + 无 VAD 转写，声纹判说话人）
+_base_: base.yaml
+experiment: {name: trial_compressed}
+paths: {interim: data/interim}
+preprocessing: {transcribe: {method: compressed}}

@@ -1,0 +1,6 @@
+# 原版转写（two_track：Silero 分轨 + 多阈值融合 + 加权判说话人），其余和 default.yaml 完全一样。
+#   python scripts/preprocessing/run_preprocess.py --config config/two_track.yaml ...
+# 转写 / Q-A 对写到单独目录：两种方法的缓存不互相覆盖，切换时不用 --overwrite。
+_base_: default.yaml
+paths: {interim: data/interim_two_track, features: data/features_two_track}
+preprocessing: {transcribe: {method: two_track}}

@@ -49,7 +49,7 @@ uv venv --python 3.11 .venv && source .venv/bin/activate
 uv pip install -e ".[all]"          # = preprocess + stage1 + dev
 ```
 
-依赖分组见 [pyproject.toml](pyproject.toml)：`preprocess`（silero-vad、whisperx、WavLM）、`stage1`（transformers、peft、sentence-transformers、bitsandbytes）。
+依赖分组见 [pyproject.toml](pyproject.toml)：`preprocess`（silero-vad、whisperx、pyannote 声纹、WavLM）、`stage1`（transformers、peft、sentence-transformers、bitsandbytes）。
 
 ## 运行顺序
 
@@ -57,7 +57,7 @@ uv pip install -e ".[all]"          # = preprocess + stage1 + dev
 # 0. 标签检查 + 固定 5 折划分（只需要 data/labels/，不需要音频）
 python scripts/preprocessing/prepare_labels.py
 
-# 1. 预处理（每步有缓存，可以中断后继续）
+# 1. 预处理（每步有缓存，可以中断后继续）。默认转写方法 compressed；原版 two_track 加 --config config/two_track.yaml
 python scripts/preprocessing/run_preprocess.py
 python scripts/preprocessing/qc_report.py          # 人工核对 Ellie 识别和 Q-A 切分，补全问题库
 

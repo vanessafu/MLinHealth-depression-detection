@@ -20,11 +20,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# 预处理：VAD + WhisperX（分轨转写 / 对齐）+ WavLM 特征
+# 预处理：VAD + WhisperX（转写 / 对齐）+ 声纹 + WavLM 特征
 preprocess = [
     "silero-vad>=5.1",
-    "whisperx>=3.3",
-    "noisereduce>=3.0",        # Ellie 轨降噪
+    "whisperx>=3.8",           # 3.3 带的 pyannote 3.x 在新 torchaudio 上报 AudioMetaData 错
+    "pyannote.audio>=4.0",     # compressed：wespeaker 声纹（voiceprint.py）
+    "faster-whisper>=1.1",     # compressed：无 VAD 主转写（transcribe.py）
+    "noisereduce>=3.0",        # two_track：Ellie 轨降噪
     "torchaudio>=2.3",
     "transformers>=4.44",
 ]
@@ -33,7 +35,7 @@ stage1 = [
     "transformers>=4.44",
     "peft>=0.12",
     "accelerate>=0.33",
-    "sentence-transformers>=3.0",
+    "sentence-transformers>=3.0,<6",   # 6.x 和 whisperx 要求的 transformers 版本冲突
     "bitsandbytes>=0.43; sys_platform == 'linux'",
 ]
 dev = [
