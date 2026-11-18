@@ -112,12 +112,17 @@ def text_features(segs: list[dict]) -> tuple[np.ndarray, np.ndarray]:
 
 
 def score(lvl: np.ndarray, txt: np.ndarray, quiet_track: np.ndarray, sc,
-          qmark: np.ndarray | None = None, first_person: np.ndarray | None = None) -> tuple[np.ndarray, dict]:
-    """线索 -> P(Ellie)。sc: speaker 配置（dict 或 Cfg）。"""
+          qmark: np.ndarray | None = None, first_person: np.ndarray | None = None,
+          n_words: np.ndarray | None = None) -> tuple[np.ndarray, dict]:
+    """线索 -> P(Ellie)。sc: speaker 配置（dict 或 Cfg）。
+    n_words: 每句词数。只有 >= anchor_min_words 的高分句才参与 "Ellie 是响的还是轻的" 投票：
+    "Okay." "Yes." 这种短句受访者也常说，文本分却是 1.0，Ellie 句转写得少时会把整场判反（dev 334 / 344 / 402）。"""
     mu, sd, post_hi = _gmm2(lvl)
     hi = int(np.argmax(mu))
     p_hi = post_hi if hi == 1 else 1 - post_hi
     anchor = txt >= sc["anchor_score"]
+    if n_words is not None:
+        anchor &= n_words >= sc.get("anchor_min_words", 1)
     # 响度两簇：哪一簇是 Ellie 由 "高分文本句" 投票决定
     ellie_is_loud = bool(p_hi[anchor].mean() > 0.5) if anchor.any() else False
     p_level = p_hi if ellie_is_loud else 1 - p_hi
@@ -148,7 +153,10 @@ def assign_speakers(segs: list[dict], wav: np.ndarray, bank, cfg: Cfg) -> tuple[
     txt = text_scores(segs, load_phrases(bank, resolve(sc.phrases)))
     qm, fp = text_features(segs)
     quiet_track = np.array([s.get("track") == "quiet" for s in segs], float)
-    p, info = score(lvl, txt, quiet_track, sc, qm, fp)
+    from .ellie import normalize
+
+    nw = np.array([len(normalize(s.get("text", "")).split()) for s in segs])
+    p, info = score(lvl, txt, quiet_track, sc, qm, fp, nw)
     for s, pe, lv, t in zip(segs, p, lvl, txt):
         s["speaker"] = "ELLIE" if pe >= 0.5 else "PARTICIPANT"
         s["p_ellie"], s["level_db"], s["text_score"] = float(pe), float(lv), float(t)

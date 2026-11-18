@@ -19,7 +19,11 @@ def build_qa_pairs(events: list[dict], cfg: Cfg) -> tuple[list[dict], list[tuple
                      len(events))
     end = len(events)
     if qc.trim_closing:
-        end = next((i for i, e in enumerate(events) if i >= start and e["role"] == "ellie"
+        # 只认最后一个主问题之后的告别语："Good." "Bye." 会被模糊匹配成 "goodbye"，
+        # 出现在访谈开头时会把整场都删掉（dev 350 / 371）
+        last_main = max((i for i, e in enumerate(events) if e["role"] == "ellie" and e["type"] == "main"),
+                        default=start)
+        end = next((i for i, e in enumerate(events) if i > last_main and e["role"] == "ellie"
                     and e["type"] == "closing"), len(events))
 
     pairs: list[dict] = []

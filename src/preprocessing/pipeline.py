@@ -14,7 +14,7 @@ from ..audio import load_wav
 from ..config import Cfg
 from . import feature_path, interim_path
 
-STEPS = ["vad", "transcribe", "qa", "segments", "wavlm"]
+STEPS = ["vad", "transcribe", "repair", "qa", "segments", "wavlm"]
 
 
 def _dump(obj, path: Path) -> None:
@@ -56,6 +56,17 @@ def process_session(sid: int, wav_path: Path, cfg: Cfg, steps: list[str], device
 
         _dump(transcribe(get_wav(), _load(p_vad)["speech_by_threshold"], cfg, device), p_tr)
 
+    # --- 用官方转写修复（可选）---
+    p_rep = interim_path(cfg, "transcripts_repaired", sid, "json")
+    if "repair" in steps and (overwrite or not p_rep.exists()):
+        from .repair import load_official, official_transcript_path, repair_session
+
+        off = official_transcript_path(wav_path, sid)
+        if off is None:
+            status["repair"] = "no official transcript"
+        else:
+            _dump(repair_session(get_wav(), _load(p_tr), load_official(off), cfg, device), p_rep)
+
     # --- Ellie + Q-A pairs ---
     p_qa = interim_path(cfg, "qa_pairs", sid, "json")
     if "qa" in steps and (overwrite or not p_qa.exists()):
@@ -64,7 +75,12 @@ def process_session(sid: int, wav_path: Path, cfg: Cfg, steps: list[str], device
         from .transcribe import words_to_utterances
 
         bank = QuestionBank(cfg)
-        utts = words_to_utterances(_load(p_tr), cfg.preprocessing.whisperx.utterance_gap_sec)
+        if cfg.preprocessing.repair.use_for_qa and p_rep.exists():
+            from .repair import turns_to_utterances
+
+            utts = turns_to_utterances(_load(p_rep))
+        else:
+            utts = words_to_utterances(_load(p_tr), cfg.preprocessing.whisperx.utterance_gap_sec)
         ellie, counts = identify_ellie(utts, bank)
         if ellie is None:
             status["error"] = "Ellie not identified (no bank matches)"

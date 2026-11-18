@@ -26,6 +26,9 @@ def main():
     ap.add_argument("--steps", nargs="*", default=STEPS, choices=STEPS)
     ap.add_argument("--sids", nargs="*", type=int, default=None)
     ap.add_argument("--overwrite", action="store_true")
+    ap.add_argument("--sid-file", default=None, help="每行一个 sid；配合 --chunk i/n 做 Slurm 数组任务")
+    ap.add_argument("--chunk", default=None, help="i/n：只跑 sid 列表的第 i 份（共 n 份，i 从 0 开始）")
+    ap.add_argument("--log", default=None, help="日志文件，默认 data/interim/preprocess_log.json")
     args = ap.parse_args()
     cfg = config_from_args(args)
 
@@ -33,6 +36,11 @@ def main():
     if not audio:
         sys.exit(f"在 {resolve(cfg.paths.raw_audio)} 下没找到 {cfg.paths.audio_glob}")
     sids = args.sids or sorted(audio)
+    if args.sid_file:
+        sids = [int(x) for x in open(args.sid_file).read().split()]
+    if args.chunk:
+        i, n = map(int, args.chunk.split("/"))
+        sids = sids[i::n]
     print(f"{len(sids)} sessions, steps={args.steps}")
     log = []
     for sid in tqdm(sids):
@@ -45,7 +53,7 @@ def main():
             traceback.print_exc()
             log.append({"sid": sid, "error": repr(e)})
     errs = [r for r in log if "error" in r]
-    out = resolve(cfg.paths.interim) / "preprocess_log.json"
+    out = Path(args.log) if args.log else resolve(cfg.paths.interim) / "preprocess_log.json"
     json.dump(log, open(out, "w"), indent=1)
     print(f"done: {len(log) - len(errs)} ok, {len(errs)} failed -> {out}")
 
