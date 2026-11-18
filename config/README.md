@@ -73,6 +73,7 @@
 | `whisperx.batch_size` | 16 | 🖥️ | 显存不够就调小，不影响结果 | transcribe |
 | `ellie_track.*` | 见 default.yaml | 📏 | quiet 轨：VAD 区间挖掉后降噪 + 逐段 RMS 标准化（录音里一个人常比另一个小 7–30 dB） | transcribe |
 | `speaker.*` | 见 default.yaml | 📏 | 逐句判别 Ellie / 受访者：文本 / 响度（按 d' 自适应）/ 轨道 / 问句 加权；用 `scripts/analysis/tune_speaker.py` 在人工标注上重新调 | transcribe |
+| `repair.*` | 见 default.yaml | 📏 | 用官方 `XXX_Transcript.csv` 修复说话人 + 找回 Ellie 问题（`src/preprocessing/repair.py`）：受访者 = 官方句子，空隙里 = Ellie，像回答 / 对齐差 / 响度像受访者 -> UNKNOWN；`use_for_qa: true` 时 qa 步用修复后的转写。评估：`scripts/analysis/repair_eval.py` | repair |
 | `whisperx.utterance_gap_sec` | 1.0 | 📏 | 同一个人两个词之间超过这个间隔就切成两句话 | qa |
 | `ellie.question_bank` | `resources/ellie_questions.csv` | 📏 | **需要你补全**，见下文“资源文件” | qa |
 | `ellie.match_threshold` | 0.80 | 📏 | 0.75–0.90。识别 Ellie 或分类她的话时漏得多就调低，误匹配多就调高 | qa |

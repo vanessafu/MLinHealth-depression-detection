@@ -62,13 +62,13 @@ preprocessing:
 
   snr:                         # 每个 session 的信噪比诊断（src/preprocessing/snr.py），写进 vad/<sid>.json
     smooth_s: 0.5              # 能量 / Silero 概率的平滑窗口
-    active_above_floor_db: 8.0 # 比底噪高这么多才算 "有声帧"
+    active_above_floor_db: 6.0 # 比底噪高这么多才算 "有声帧"
 
   vad:
-    thresholds: [0.12, 0.7]    # 每个阈值各跑一次分轨转写再融合：第一个（低）为主，后面的（高）补漏（transcribe.py）
-    min_speech_ms: 100
-    min_silence_ms: 300
-    speech_pad_ms: 100
+    thresholds: [0.95]         # 只跑一个阈值（列表里写多个才会多次分轨转写再融合，见 transcribe.py）
+    min_speech_ms: 50
+    min_silence_ms: 500 #300
+    speech_pad_ms: 400  #100
 
   whisperx:
     model: large-v3
@@ -78,10 +78,10 @@ preprocessing:
     utterance_gap_sec: 1.0     # 同一说话人两个词间隔超过它就切成两句话
 
   ellie_track:                 # quiet 轨：VAD 区间挖掉后降噪 + 逐段 RMS 标准化（把轻的那个人提上来）
-    pad_s: 0.3                 # 挖掉 VAD 区间时两边多挖的秒数（防止响的人的尾音漏进 quiet 轨）
-    target_db: -24.0           # 每段间隙标准化到的响度（有声帧）
-    max_gain_db: 50.0          # 最多放大多少 dB
-    min_snr_db: 8.0            # 间隙比底噪高不到这么多就当静音，不放大（防 Whisper 幻觉）
+    pad_s: 0.03              # 挖掉 VAD 区间时两边多挖的秒数（防止响的人的尾音漏进 quiet 轨）
+    target_db: -12.0           # 每段间隙标准化到的响度（有声帧）,24
+    max_gain_db: 70.0          # 最多放大多少 dB,50
+    min_snr_db: 6.0            # 间隙比底噪高不到这么多就当静音，不放大（防 Whisper 幻觉）8
     prop_decrease: 1.0         # noisereduce 降噪强度（0–1）
     n_std: 1.5                 # noisereduce 门限（几倍噪声标准差）
 
@@ -90,15 +90,30 @@ preprocessing:
     text_center: 0.6           # 和 Ellie 说法的相似度高于它 -> 倾向 Ellie
     text_scale: 0.05
     text_weight: 1.0
-    level_weight: 0.5          # 响度线索权重上限；实际权重 = level_weight * sigmoid((d' - level_d0) / level_tau)
-    level_d0: 3.0              # 两人响度分离度 d' 超过它才主要信响度（309 d'=5、676 d'=4、308 d'=2.6）
+    level_weight: 0.1          # 响度线索权重上限；实际权重 = level_weight * sigmoid((d' - level_d0) / level_tau)
+    level_d0: 4.0              # 两人响度分离度 d' 超过它才主要信响度（309 d'=5、676 d'=4、308 d'=2.6）
     level_tau: 0.5
-    track_weight: 2.0          # 来自 quiet 轨 -> 属于 "轻" 的那个人
-    question_weight: 1.0       # 问句 -> 倾向 Ellie
+    track_weight: 0.0          # 来自 quiet 轨 -> 属于 "轻" 的那个人（关掉：只用文本 + 一点响度），2.0
+    question_weight: 0.0       # 问句 -> 倾向 Ellie（关掉），1.0
     first_person_weight: 0.0   # 第一人称词比例（网格里没帮助，留作开关）
     bias: -0.5
     anchor_score: 0.8          # 相似度 >= 它的句子用来判定 "Ellie 是响的还是轻的那个人"
+    anchor_min_words: 3        # 而且至少这么多词（"Okay." "Yes." 受访者也说，不能拿来投票）
     opening_min_score: 0.8     # 访谈开始 = 第一句和开场白相似度 >= 它的 Ellie 句
+
+  repair:                      # 用官方 XXX_Transcript.csv 修复说话人 + 找回 Ellie 问题（src/preprocessing/repair.py）
+    use_for_qa: false          # true: qa 步用修复后的转写（transcripts_repaired/）
+    pad_s: 0.3                 # 官方受访者句子两边各扩多少秒算 "受访者区间"
+    window_s: 2.0              # n-gram 比对时看前后多少秒的官方文本
+    support_min: 0.5           # n-gram 重合度 >= 它 -> 受访者
+    min_run_words: 3           # 按受访者区间切句时，短于它的碎片并回相邻部分
+    ellie_like_score: 0.8      # 和 Ellie 说法相似度 >= 它（且 >= 3 词）-> 像 Ellie
+    weak_like_score: 0.6       # 空隙里的句子至少这么像 Ellie，就不用对齐分数 / 响度去否决
+    halluc_score: 0.25         # 空隙里的句子词对齐分数均值低于它且不像 Ellie -> UNKNOWN（多半是 Whisper 编的）
+    level_min_dprime: 3.0      # 两人响度分得开（d' >= 它）才用响度否决
+    level_margin_db: 6.0       # 离受访者那一簇比离 Ellie 那一簇近这么多 dB -> UNKNOWN
+    gap_asr: true              # 按官方受访者区间重做 Ellie 轨并转写，补回漏掉的 Ellie 句
+    canon_score: 0.8           # Ellie 句和问题库原句相似度 >= 它 -> 换成原句（text_asr 保留原文）
 
   ellie:
     question_bank: resources/ellie_questions.csv
@@ -111,9 +126,9 @@ preprocessing:
     trim_closing: true         # 从告别语开始删掉
 
   segments:
-    min_sec: 1.0               # 回答短于它不生成音频片段
+    min_sec: 0.5               # 回答短于它不生成音频片段
     max_sec: 20.0              # 片段最长时长
-    margin_sec: 0.2            # 两端余量
+    margin_sec: 0.5            # 两端余量
     split_pause_sec: 0.3       # 切长片段时优先选的最小停顿
 
   wavlm:
@@ -137,7 +152,7 @@ stage1:
     batch_size: 64
 
   model:
-    base: Qwen/Qwen2.5-7B-Instruct     # 备选 meta-llama/Llama-3.1-8B-Instruct
+    base: Qwen/Qwen3-4B-base
     dtype: bfloat16
     load_in_4bit: false                # 显存不够时打开（QLoRA）
     attn_implementation: sdpa          # 装了 flash-attn 可改 flash_attention_2
