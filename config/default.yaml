@@ -172,6 +172,17 @@ stage1:
     lambda_sum: 0.5            # session 级总分项权重
     class_weight: inv_sqrt_freq    # inv_sqrt_freq / none
     class_weight_smoothing: 1.0    # 频数加平滑，防止某类频数为 0
+    sample_weight: none        # none / lds：按总分给 session 加权（高分样本少 -> 权重大）
+    sample_weight_sigma: 2.0   # 总分直方图的高斯平滑
+    sample_weight_power: 0.5   # w ∝ density^-power（1 = 完全反比，0.5 更温和）
+
+  severity:                    # 严重程度区间任务（每个 session 多一条 "整体区间" 提示词）
+    enabled: false
+    edges: [0, 5, 10, 15, 25]  # 4 档：0-4 / 5-9 / 10-14 / 15-24（20-24 太少，与 15-19 合并）
+    lambda_head: 0.5           # 区间题交叉熵
+    lambda_cons: 0.5           # 8 题卷积出的总分分布落在真实区间的 -log 概率
+    combine: true              # 推理：P(s) ∝ P_items(s) · P_head(bin(s))^gamma 的期望
+    gamma: 1.0
 
   train:
     sessions_per_step: 2       # 每步 2 个 session × 8 题 = 16 条序列
@@ -224,6 +235,7 @@ stage2:
     max_segments: 64           # 训练时每个 session 每个 epoch 最多抽多少片段
     batch_sessions: null       # null = 整个训练折一个 batch
     seeds: [0, 1, 2, 3, 4]
+    inner_val_frac: null       # 例如 0.2：早停用训练折内部的验证集，外层折只出 OOF（OOF 不再偏乐观）
 
   grid:                        # train_stage2.py --grid 时搜索这些组合，按 CV 总分 CCC 选
     w_tired: [0.0, 0.25, 0.5]

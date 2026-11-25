@@ -1,0 +1,214 @@
+text,type,rapport,items,notes
+hi i'm ellie thanks for coming in today,opening,0,,
+i was created to talk to people in a safe and secure environment,opening,0,,
+think of me as a friend i don't judge i can't i'm a computer,opening,0,,
+i'm here to learn about people and would love to learn about you,opening,0,,
+i'll ask a few questions to get us started,opening,0,,
+and please feel free to tell me anything your answers are totally confidential,opening,0,,
+are you okay with this,opening,0,,
+how are you doing today,main,1,,
+where are you from originally,main,1,,
+what are some things you really like about la,main,1,,
+what are some things you don't really like about la,main,1,,
+how often do you go back to your hometown,main,1,,
+do you travel a lot,main,1,,
+what do you enjoy about traveling,main,1,1,
+what's one of your most memorable experiences,main,1,,
+what did you study at school,main,1,,
+what do you do for a living,main,1,,
+are you still doing that,main,1,,
+what's your dream job,main,1,,
+do you consider yourself an introvert,main,0,,
+what do you do to relax,main,0,1,
+what are some things you like to do for fun,main,0,1,
+how are you at controlling your temper,main,0,8,
+when was the last time you argued with someone and what was it about,main,0,,
+tell me about your relationship with your family,main,0,,
+how close are you to them,main,0,,
+how easy is it for you to get a good night's sleep,main,0,3,
+what are you like when you don't sleep well,main,0,3;4,
+how have you been feeling lately,main,0,2,
+have you noticed any changes in your behavior or thoughts lately,main,0,2;7;8,
+have you been diagnosed with depression,main,0,2,
+have you ever been diagnosed with p t s d,main,0,,
+have you ever served in the military,main,0,,
+when was the last time you felt really happy,main,0,1;2,
+what are you most proud of in your life,main,0,6,
+how would your best friend describe you,main,0,6,
+what are some things that make you really mad,main,0,,
+is there anything you regret,main,0,6,
+what's something you feel guilty about,main,0,6,
+what would you say are some of your best qualities,main,0,6,
+what are some things you wish you could change about yourself,main,0,6,
+what advice would you give yourself ten or twenty years ago,main,0,6,
+who's someone that's been a positive influence in your life,main,0,,
+how do you cope with them,main,0,,
+what got you to seek help,main,0,2,
+do you feel like therapy is useful,main,0,,
+can you tell me more about that,followup,0,,
+tell me more about that,followup,0,,
+can you give me an example of that,followup,0,,
+why,followup,0,,
+how so,followup,0,,
+how did you feel in that moment,followup,0,,
+what happened,followup,0,,
+mhm,backchannel,0,,
+uh huh,backchannel,0,,
+i see,backchannel,0,,
+okay,backchannel,0,,
+that's great,backchannel,0,,
+that's so good to hear,backchannel,0,,
+i'm sorry to hear that,backchannel,0,,
+that sounds really hard,backchannel,0,,
+nice,backchannel,0,,
+cool,backchannel,0,,
+awesome,backchannel,0,,
+wow,backchannel,0,,
+really,backchannel,0,,
+yeah,backchannel,0,,
+thanks for sharing your thoughts with me,closing,0,,
+okay i think i have asked everything i need to,closing,0,,
+goodbye,closing,0,,
+thanks for coming in today,opening,0,,mined:108
+i'm not a therapist but i'm here to learn about people and would love to learn about you,opening,0,,mined:96
+tell me about the last time you felt really happy,main,0,1;2,mined:79
+tell me about the hardest decision you've ever had to make,main,0,,mined:75
+that's good,backchannel,0,,mined:71
+hi i'm ellie,opening,0,,mined:67
+tell me about a situation that you wish you would handle differently,main,0,,mined:66
+how did you decide to do that,followup,0,,mined:57
+tell me about an event or something that you wish you could erase from your memory,main,0,,mined:57
+how hard is that,followup,0,,mined:55
+your answers are totally confidential,opening,0,,mined:51
+tell me about something you did recently that you really enjoyed,main,0,,mined:48
+hey i know it's not hawaii but it's the best i've got,followup,0,,mined:46
+i see what you mean,followup,0,,mined:43
+what made you decide to do that,followup,0,,mined:42
+do you consider yourself more shy or outgoing,main,0,,mined:39
+sometimes when i'm feeling tense i turn on the fishtank screensaver,followup,0,,mined:39
+how long ago were you diagnosed,main,0,,mined:34
+how close are you to your family,main,0,,mined:31
+that sounds like a great situation,followup,0,,mined:28
+and please feel free to tell me anything,opening,0,,mined:28
+when was the last time you argued with someone,main,0,,mined:28
+do you still go to therapy now,main,0,,mined:26
+i'm not much of a world explorer,followup,0,,mined:24
+why'd you move to la,followup,0,,mined:22
+what were your symptoms,main,0,,mined:22
+that sounds interesting,backchannel,0,,mined:21
+what do you do when you're annoyed,main,0,,mined:21
+i'd love to hear about all your trips,followup,0,,mined:21
+are you happy you did that,followup,0,,mined:19
+how does it compare to la,main,0,,mined:19
+how easy was it for you to get used to living in la,main,0,,mined:19
+what's the best thing about being a parent,main,0,,mined:18
+i'm sure you can tell by my shoes,followup,0,,mined:17
+why did you stop,followup,0,,mined:16
+when was the last time that happened,followup,0,,mined:16
+what was it about,main,0,,mined:16
+tell me about a time when someone made you feel really bad about yourself,main,0,,mined:16
+tell me how you spend your ideal weekend,main,0,,mined:15
+that's it,backchannel,0,,mined:14
+whatever comes to your mind,followup,0,,mined:14
+have you done anything to avoid it,main,0,,mined:13
+that makes sense,backchannel,0,,mined:12
+that sucks,backchannel,0,,mined:12
+how do you know them,main,0,,mined:11
+did you think you had a problem before you found out,main,0,,mined:11
+time you argued with someone and what was it about,main,0,,mined:11
+free to tell me anything,opening,0,,mined:10
+do you feel down,main,0,,mined:9
+do you feel that way often,followup,0,,mined:9
+when did you move to la,main,0,,mined:9
+how do you feel about that,followup,0,,mined:9
+what,backchannel,0,,mined:8
+what sort of changes have you noticed since you've been going to therapy,main,0,,mined:8
+what would you say if somebody has problems,main,0,,mined:8
+i'm great thanks,backchannel,0,,mined:7
+tell me about your kids,main,0,,mined:7
+has that gotten you in trouble,followup,0,,mined:7
+and please feel free to send me a message,followup,0,,mined:7
+let's come back to that later,followup,0,,mined:7
+i'll ask you a few questions before we start,followup,0,,mined:7
+what do you think of today's kids,main,0,,mined:7
+how do you talk with them,main,0,,mined:7
+sorry,backchannel,0,,mined:6
+would you study at school,main,0,,mined:6
+when was the last time you talked to me,main,0,,mined:6
+how do you like your living situation,main,0,,mined:6
+what's the hardest thing about being a child,main,0,,mined:6
+what are some things that you do,followup,0,,mined:6
+there's someone that's been a positive influence on me,followup,0,,mined:6
+how easy is it for you to do it,main,0,,mined:6
+do you have roommates,main,0,,mined:5
+ever had to make,backchannel,0,,mined:5
+it can be tough to find a good job these days,followup,0,,mined:5
+that's a long time,backchannel,0,,mined:5
+how old were you when you joined the military,main,0,,mined:5
+i don't understand,backchannel,0,,mined:5
+is there anything here greg,main,0,6,mined:5
+how is seeing a therapist affecting you,main,0,,mined:5
+what are some ways that you're different as a parent than your parents,main,0,,mined:5
+why did you move to a leg,followup,0,,mined:5
+me about that,followup,0,,mined:5
+what's something you feel close to,main,0,6,mined:5
+let's go,backchannel,0,,mined:4
+thank you for listening,backchannel,0,,mined:4
+thanks for coming,opening,0,,mined:4
+that you really enjoyed,backchannel,0,,mined:4
+what did you do after the military,main,0,,mined:4
+how did you feel when that happened,followup,0,,mined:4
+yeah i'm sorry,backchannel,0,,mined:4
+to people in a safe and secure environment,opening,0,,mined:4
+what do you mean,main,0,,mined:4
+i think i've asked everything on youtube,closing,0,,mined:4
+what do you think about this,main,0,,mined:4
+you don't sleep well,main,0,,mined:4
+how are you controlling yourself,main,0,8,mined:4
+what would you say to somebody who has qualities,main,0,,mined:4
+how'd you decide to enlist in the military,main,0,,mined:4
+thanks for sharing your gospel,followup,0,,mined:4
+how easy is it for you to get an escape,main,0,,mined:4
+and please feel free to speak with me,followup,0,,mined:4
+i'll ask a few questions from the start,followup,0,,mined:4
+you to get a good night's sleep,main,0,,mined:4
+well um,backchannel,0,,mined:3
+right,backchannel,0,,mined:3
+request,backchannel,0,,mined:3
+where do you live,main,0,,mined:3
+thanks for sharing your philosophy,followup,0,,mined:3
+thank you so much,backchannel,0,,mined:3
+is it uncomfortable for you to talk about this,main,0,,mined:3
+what are some things that usually put you in a good mood,main,0,,mined:3
+e,backchannel,0,,mined:3
+i see you,backchannel,0,,mined:3
+i'm ali,backchannel,0,,mined:3
+i love my job,backchannel,0,,mined:3
+aww,backchannel,0,,mined:3
+thank you very much,backchannel,0,,mined:3
+how did you decide to do college,main,0,,mined:3
+oh no,backchannel,0,,mined:3
+hey um,backchannel,0,,mined:3
+what are you most proud of in the moment,main,0,6,mined:3
+what are you saying,main,0,,mined:3
+do you find it easy with your parents,main,0,,mined:3
+she's going to chat with you for a bit,followup,0,,mined:3
+do you think that maybe you're being a little hard on yourself,main,0,,mined:3
+you're very young aren't you,main,0,,mined:3
+thank you for watching,backchannel,0,,mined:3
+so how do you do this,main,0,,mined:3
+how do you,main,0,,mined:3
+your answers are totally accomplished,followup,0,,mined:3
+what are you like when you just eat well,main,0,3;4,mined:3
+will you enjoy the traveling,main,0,,mined:3
+what are some things that make you mean enough,main,0,,mined:3
+when was the last time you felt worried,main,0,1;2,mined:3
+when was the last time you drank,main,0,,mined:3
+i'm going to go ahead and shut off the recording,followup,0,,mined:3
+really badly about yourself,backchannel,0,,mined:3
+you go back to your home town,main,0,,mined:3
+do you consider yourself more shy or a killer,main,0,,mined:3
+what do you mean to the leg,main,0,,mined:3
+what advice would you give yourself to help your family's health,main,0,,mined:3
+tell me about a situation that you wish you had been in a different way,main,0,,mined:3
+you felt really happy,main,0,,mined:3

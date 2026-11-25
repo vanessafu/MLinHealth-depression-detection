@@ -61,8 +61,8 @@ def evaluate(final: pd.DataFrame, labels: pd.DataFrame, teacher: dict, cfg: Cfg)
 
 def text_only_predictions(teacher: dict) -> pd.DataFrame:
     tf = teacher_features(teacher["probs"])
-    return pd.DataFrame({"sid": teacher["sids"], "split": teacher["split"], "y_text": tf["y_text"],
-                         "y_tot": tf["y_text"]})
+    y = teacher.get("y_text", tf["y_text"])
+    return pd.DataFrame({"sid": teacher["sids"], "split": teacher["split"], "y_text": y, "y_tot": y})
 
 
 assert N_ITEMS == 8

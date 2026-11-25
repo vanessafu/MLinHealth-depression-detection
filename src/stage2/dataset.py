@@ -17,7 +17,10 @@ class Bags:
         missing = [s for s in sids if s not in idx]
         if missing:
             raise KeyError(f"teacher predictions missing for sessions: {missing[:10]}")
-        tf = teacher_features(t["probs"][[idx[s] for s in sids]])
+        sel = [idx[s] for s in sids]
+        tf = teacher_features(t["probs"][sel])
+        if "y_text" in t:                    # 区间题校正后的总分
+            tf["y_text"] = t["y_text"][sel]
         self.sids = list(sids)
         self.y_text = torch.tensor(tf["y_text"], dtype=torch.float32)
         self.tau = torch.tensor(tf["tau"], dtype=torch.float32)

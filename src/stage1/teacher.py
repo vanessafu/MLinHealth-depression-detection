@@ -15,14 +15,19 @@ from .. import MOVING_IDX, N_CLASSES, TIRED_IDX
 EPS = 1e-4
 
 
-def save_teacher(path: Path, sids, split, probs) -> None:
+def save_teacher(path: Path, sids, split, probs, y_text=None) -> None:
+    """y_text（可选）：用区间题校正后的总分；不给就用 8 题期望之和。"""
+    extra = {} if y_text is None else {"y_text": np.asarray(y_text, dtype=np.float32)}
     np.savez(path, sids=np.asarray(sids, dtype=np.int64), split=np.asarray(split, dtype=str),
-             probs=np.asarray(probs, dtype=np.float32))
+             probs=np.asarray(probs, dtype=np.float32), **extra)
 
 
 def load_teacher(path: Path) -> dict:
     d = np.load(path)
-    return {"sids": d["sids"], "split": d["split"], "probs": d["probs"]}
+    out = {"sids": d["sids"], "split": d["split"], "probs": d["probs"]}
+    if "y_text" in d:
+        out["y_text"] = d["y_text"]
+    return out
 
 
 def _logit(p: np.ndarray) -> np.ndarray:

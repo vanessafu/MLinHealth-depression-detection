@@ -100,8 +100,16 @@ def run_cv(cfg: Cfg, bags: Bags, folds: pd.DataFrame, eval_idx: dict[str, list[i
     for f in range(n_folds):
         tr = [sid_to_i[s] for s in folds.sid[folds.fold != f]]
         va = [sid_to_i[s] for s in folds.sid[folds.fold == f]]
+        inner = cfg.stage2.train.get("inner_val_frac")
         for seed in seeds:
-            model, best = train_one(cfg, bags, tr, va, seed=seed * 1000 + f, device=device)
+            if inner:   # 早停用训练折内部再划出的验证集；外层 va 只用来出 OOF（否则 OOF 偏乐观，β 被推大）
+                r = np.random.default_rng(seed * 1000 + f)
+                perm = r.permutation(tr).tolist()
+                n_in = max(2, int(round(len(perm) * float(inner))))
+                tr_fit, va_stop = perm[n_in:], perm[:n_in]
+            else:
+                tr_fit, va_stop = tr, va
+            model, best = train_one(cfg, bags, tr_fit, va_stop, seed=seed * 1000 + f, device=device)
             log.append({"fold": f, "seed": seed, "best_epoch": best["epoch"], "val_ccc": best["ccc"]})
             p = predict(model, bags, va, device)
             for k in oof:

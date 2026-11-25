@@ -11,29 +11,47 @@ import torch
 
 from .. import N_ITEMS
 from ..config import Cfg, set_seed
-from .dataset import Stage1Sessions
-from .losses import class_weights, stage1_loss
+from .dataset import Stage1Sessions, bin_enabled
+from .losses import class_weights, session_weights, stage1_loss
 from .model import ItemScorer
 from .teacher import save_teacher
 
 
+def _sev(cfg: Cfg):
+    return cfg.stage1.get("severity", {})
+
+
 @torch.no_grad()
-def predict(scorer: ItemScorer, ds: Stage1Sessions, batch_sessions: int) -> np.ndarray:
-    """[len(ds), 8, 4] probabilities."""
+def predict(scorer: ItemScorer, ds: Stage1Sessions, batch_sessions: int, return_bin: bool = False):
+    """[len(ds), 8, 4] probabilities；return_bin=True 时另外返回区间题的分布 [len(ds), 4]（没开区间题则为 None）。"""
     scorer.model.eval()
-    out = []
+    out, outb = [], []
+    use_bin = bin_enabled(scorer.cfg)
     for i in range(0, len(ds), batch_sessions):
         batch = [ds.get(j) for j in range(i, min(i + batch_sessions, len(ds)))]
         prompts = [p for b in batch for p in b["prompts"]]
         z = scorer.score_logits(prompts).view(len(batch), N_ITEMS, -1)
         out.append(z.softmax(-1).cpu().numpy())
-    return np.concatenate(out) if out else np.zeros((0, N_ITEMS, 4), dtype=np.float32)
+        if use_bin:
+            outb.append(scorer.score_logits([b["bin_prompt"] for b in batch]).softmax(-1).cpu().numpy())
+    probs = np.concatenate(out) if out else np.zeros((0, N_ITEMS, 4), dtype=np.float32)
+    if not return_bin:
+        return probs
+    return probs, (np.concatenate(outb) if outb else None)
 
 
-def _val_mae(probs: np.ndarray, ds: Stage1Sessions) -> float:
+def predict_total(cfg: Cfg, probs: np.ndarray, bin_probs: np.ndarray | None) -> np.ndarray:
+    from .severity import DEFAULT_EDGES, combine
+
+    sv = _sev(cfg)
+    return combine(probs, bin_probs if sv.get("combine", True) else None, sv.get("edges", DEFAULT_EDGES),
+                   sv.get("gamma", 1.0))
+
+
+def _val_mae(scorer: ItemScorer, ds: Stage1Sessions, batch_sessions: int) -> float:
+    probs, pb = predict(scorer, ds, batch_sessions, return_bin=True)
     y = np.array([ds.labels.loc[s, "phq_total"] for s in ds.sids])
-    yhat = (probs * np.arange(4)).sum(-1).sum(-1)
-    return float(np.abs(yhat - y).mean())
+    return float(np.abs(predict_total(scorer.cfg, probs, pb) - y).mean())
 
 
 def train_model(cfg: Cfg, scorer: ItemScorer, train_ds: Stage1Sessions, val_ds: Stage1Sessions | None,
@@ -42,6 +60,15 @@ def train_model(cfg: Cfg, scorer: ItemScorer, train_ds: Stage1Sessions, val_ds: 
     tc, lc = cfg.stage1.train, cfg.stage1.loss
     y_items = np.stack([train_ds.get(i)["y_items"] for i in range(len(train_ds))])
     w = class_weights(y_items, lc.class_weight, lc.class_weight_smoothing)
+    y_tot_tr = np.array([train_ds.get(i)["y_total"] for i in range(len(train_ds))])
+    swmap = session_weights(y_tot_tr, lc.get("sample_weight", "none"), lc.get("sample_weight_sigma", 2.0),
+                            lc.get("sample_weight_power", 0.5))
+    sv = _sev(cfg)
+    use_bin = bin_enabled(cfg)
+    lam_cons, lam_head = float(sv.get("lambda_cons", 0.0)), float(sv.get("lambda_head", 0.0))
+    edges = list(sv.get("edges", [0, 5, 10, 15, 25]))
+    if use_bin:
+        from .severity import bin_index
 
     params = [p for p in scorer.model.parameters() if p.requires_grad]
     opt = torch.optim.AdamW(params, lr=tc.lr, weight_decay=tc.weight_decay)
@@ -72,16 +99,24 @@ def train_model(cfg: Cfg, scorer: ItemScorer, train_ds: Stage1Sessions, val_ds: 
                 z = scorer.score_logits(prompts).view(len(batch), N_ITEMS, -1)
                 yi = torch.tensor(np.stack([b["y_items"] for b in batch]), device=z.device)
                 yt = torch.tensor([b["y_total"] for b in batch], device=z.device, dtype=torch.float32)
-                loss, parts = stage1_loss(z, yi, yt, w, lc.mu, lc.lambda_sum)
+                sw = torch.tensor([swmap[int(b["y_total"])] for b in batch], device=z.device)
+                loss, parts = stage1_loss(z, yi, yt, w, lc.mu, lc.lambda_sum, sess_w=sw,
+                                          lambda_bin=lam_cons if use_bin else 0.0, bin_edges=edges)
                 (loss * len(batch) / len(step_idx)).backward()
                 losses.append(loss.item())
+                if use_bin and lam_head > 0:     # 区间题单独前向 / 反向，显存峰值不增加
+                    zb = scorer.score_logits([b["bin_prompt"] for b in batch])
+                    tb = torch.tensor(bin_index(yt.cpu().numpy(), edges), device=zb.device)
+                    lb = torch.nn.functional.cross_entropy(zb, tb, reduction="none")
+                    lb = (sw * lb).mean()
+                    (lam_head * lb * len(batch) / len(step_idx)).backward()
             torch.nn.utils.clip_grad_norm_(params, tc.max_grad_norm)
             opt.step()
             sched.step()
 
         rec = {"epoch": epoch, "train_loss": float(np.mean(losses))}
         if val_ds is not None:
-            rec["val_mae"] = _val_mae(predict(scorer, val_ds, tc.eval_batch_sessions), val_ds)
+            rec["val_mae"] = _val_mae(scorer, val_ds, tc.eval_batch_sessions)
             if rec["val_mae"] < best["mae"]:
                 best.update(mae=rec["val_mae"], epoch=epoch, state=scorer.lora_state())
                 bad = 0
@@ -113,11 +148,12 @@ def run_fold(cfg: Cfg, f: int, train_sids, val_sids, eval_sids: dict[str, list[i
     train_model(cfg, scorer, tr, va, fdir)
 
     bs = cfg.stage1.train.eval_batch_sessions
-    res = {"val": (val_sids, predict(scorer, va, bs))}
+    res = {"val": (val_sids, *predict(scorer, va, bs, return_bin=True))}
     for split, sids in eval_sids.items():
-        res[split] = (sids, predict(scorer, Stage1Sessions(cfg, sids, retrieval, None), bs))
+        res[split] = (sids, *predict(scorer, Stage1Sessions(cfg, sids, retrieval, None), bs, return_bin=True))
     np.savez(fdir / "probs.npz", **{f"{k}_sids": np.array(v[0]) for k, v in res.items()},
-             **{f"{k}_probs": v[1] for k, v in res.items()})
+             **{f"{k}_probs": v[1] for k, v in res.items()},
+             **{f"{k}_bin": v[2] for k, v in res.items() if v[2] is not None})
     del scorer
     torch.cuda.empty_cache()
 

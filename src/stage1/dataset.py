@@ -8,8 +8,12 @@ import numpy as np
 from .. import N_ITEMS
 from ..config import Cfg
 from ..preprocessing.pipeline import load_qa_pairs
-from .prompts import build_prompt
+from .prompts import build_bin_prompt, build_prompt, pair_lines
 from .retrieval import load_item_defs
+
+
+def bin_enabled(cfg: Cfg) -> bool:
+    return bool(cfg.stage1.get("severity", {}).get("enabled", False))
 
 
 class Stage1Sessions:
@@ -41,13 +45,18 @@ class Stage1Sessions:
 
     def get(self, idx: int) -> dict:
         sid = self.sids[idx]
-        prompts = []
+        prompts, used = [], set()
         for k in range(1, N_ITEMS + 1):
             r = self.ret[sid][k]
-            pairs = [self.pairs[sid][pid] for pid in self._select(r["ranked"])]
+            chosen = self._select(r["ranked"])
+            used.update(chosen)
+            pairs = [self.pairs[sid][pid] for pid in chosen]
             prompts.append(build_prompt(k, self.items[k]["text"], pairs, r["ev"],
                                         self.cfg.stage1.model.max_answer_words))
         out = {"sid": sid, "prompts": prompts}
+        if bin_enabled(self.cfg):           # 区间题的证据 = 8 道题用到的 Q-A 对的并集（按时间）
+            out["bin_prompt"] = build_bin_prompt(pair_lines([self.pairs[sid][p] for p in sorted(used)],
+                                                            self.cfg.stage1.model.max_answer_words))
         if self.labels is not None:
             row = self.labels.loc[sid]
             out["y_items"] = np.array([row[f"item{k}"] for k in range(1, N_ITEMS + 1)], dtype=np.int64)
